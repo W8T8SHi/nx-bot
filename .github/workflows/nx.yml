@@ -1,0 +1,40 @@
+name: Version multi-downloader-nx
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # toutes les 30 minutes (GitHub peut retarder un peu)
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Envoyer un message de test sur Discord"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nx
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Vérifier la version
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_MENTION: ${{ vars.DISCORD_MENTION }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ inputs.test }}" = "true" ]; then python nx_bot.py --test; else python nx_bot.py; fi
+      - name: Enregistrer la version connue
+        run: |
+          git config user.name "nx-bot"
+          git config user.email "nx-bot@users.noreply.github.com"
+          git add derniere_version.txt
+          git diff --cached --quiet || (git commit -m "nouvelle version connue" && git push)
